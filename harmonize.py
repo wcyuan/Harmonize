@@ -837,6 +837,45 @@ O   = Interval('P8')
 #   find the chord-in-keys that match the next note
 #   given a chord-in-key, and a key, find the chord.  
 #
+#  - class Key
+#    - represented as list of notes in the scale
+#    - methods:
+#      - can get nth note of scale
+#      - list accidentals (in order)
+#      - can name the scale, deduce the scale from a name
+#      - return a chord-in-key built on the Nth note of the key
+#  - class Chord
+#    - has
+#      - a key
+#      - a list of the notes, including the root, as if the Key were C
+#        - when calculating the actual notes, add the key to each note
+#        - a list of notes or a list of intervals?
+#          - if a list of intervals, it would be intervals from the root of the Key, as if the Key started at C
+#            i.e., F-A-C1 == P4-M6-P8, not P4 + M3 + m3
+#    - represent
+#      - a chord with all specific tones ("F major")
+#        - represented as F-A-C1 with no key
+#      - a chord that is built on the Nth note of a Key, where the Key is not specified ("IV")
+#        - represented as F-A-C1 with no key
+#      - a chord that is built on the Nth note of a Key, where the Key is specified ("IV of D" == "G major")
+#        - represented as F-A-C1 with Key = D0
+#      - a generic chord type, like "Major" or "Minor" (do we need this?)
+#        - represented as C-E-G with no key
+#    - methods
+#      - a function/property that deduces the type of the chord based on
+#        the notes
+#      - a function that deduces the notes from a string and vice versa:
+#          http://en.wikipedia.org/wiki/Interval_(music)#Intervals_in_chords
+#      - two chords are equal if the root notes are equal and the
+#        component notes are equal w/o octave in any order
+#        - hash like this too.  
+#      - function: is a given note part of a given chord?
+#      - function: given a note and a chord w/o a root, return chords
+#        that contain the given note, and the key that the chord would be
+#        part of
+#      - compare two chords to see if they have the same type
+#    - freeze the class after init
+#
 #
 
 ##################################################################
