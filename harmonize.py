@@ -1,4 +1,3 @@
-#!/usr/local/bin/python
 """
 harmonize.py [<options>] [...args...]
 
@@ -15,8 +14,6 @@ from logging    import debug, getLogger, getLevelName
 from optparse   import OptionParser
 from math       import floor
 import re
-
-__version__ = "$Revision: 1.12 $"
 
 ##################################################################
 
@@ -142,7 +139,6 @@ class Note(FrozenClass):
     @classmethod
     def _steps_to_scale_num(cls, steps, flat=False):
         """
-        >>> from my.harmonize import *
         >>> Note._steps_to_scale_num(4)
         (2, 0, 0)
         >>> Note._steps_to_scale_num(5)
@@ -184,7 +180,6 @@ class Note(FrozenClass):
     @classmethod
     def _scale_num_to_steps(cls, scale_num, accidental=0, octave=0):
         """
-        >>> from my.harmonize import *
         >>> Note._scale_num_to_steps(1)
         2
         >>> Note._scale_num_to_steps(5)
@@ -217,7 +212,6 @@ class Note(FrozenClass):
     @classmethod
     def _scale_num_to_name(cls, scale_num):
         """
-        >>> from my.harmonize import *
         >>> Note._scale_num_to_name(1)
         ('D', 0)
         >>> Note._scale_num_to_name(3)
@@ -241,7 +235,6 @@ class Note(FrozenClass):
     @classmethod
     def _scale_name_to_num(cls, scale_name, octave=0):
         """
-        >>> from my.harmonize import *
         >>> Note._scale_name_to_num('C')
         0
         >>> Note._scale_name_to_num('C', octave=-1)
@@ -259,7 +252,6 @@ class Note(FrozenClass):
     @classmethod
     def _name_to_steps(cls, name, accidental=0, octave=0):
         """
-        >>> from my.harmonize import *
         >>> Note._name_to_steps('E')
         4
         >>> Note._name_to_steps('E', accidental=1)
@@ -293,7 +285,6 @@ class Note(FrozenClass):
     @classmethod
     def _parse_short_name(cls, shorthand):
         """
-        >>> from my.harmonize import *
         >>> Note._parse_short_name('A')
         ('A', 0, 0)
         >>> Note._parse_short_name('A1')
@@ -461,7 +452,6 @@ class Note(FrozenClass):
         ability to add negative intervals, but adding Notes below
         middle C.
 
-        >>> from my.harmonize import *
         >>> C + D
         Note:D0
         >>> G+P4
@@ -498,7 +488,6 @@ class Note(FrozenClass):
         function is associative: if you subtract E - G, you get the
         same thing as subtracting G - E.
 
-        >>> from my.harmonize import *
         >>> Ab - C
         Interval:m6
         >>> B - E
@@ -856,7 +845,7 @@ def main():
     """
     Main body of the script.
     """
-    opts,args = getopts()
+    #opts,args = getopts()
     import doctest
     doctest.testmod()
 
