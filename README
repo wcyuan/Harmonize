@@ -1,0 +1,9 @@
+Harmonize
+
+The goal of Harmonize is to take as input a line of melody, and to
+suggest a four-part harmonization in the style of Bach's chorales.
+The code will be written in python.
+
+FYI, there is a lot of other music software for python, listed here:
+   http://wiki.python.org/moin/PythonInMusic
+
