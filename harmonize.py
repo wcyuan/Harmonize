@@ -340,7 +340,12 @@ class Note(FrozenClass):
                 scale_num is not None or
                 steps is not None):
                 ValueError("Cannot specify short with name, scale_num, or steps")
-            (name, accidental, octave) = self._parse_short_name(short)
+            if isinstance(short, Note):
+                name = short.name
+                accidental = short.accidental
+                octave = short.octave
+            else:
+                (name, accidental, octave) = self._parse_short_name(short)
 
         if (name is not None or scale_num is not None):
             # set octave (may be changed when reading scale_num)
@@ -683,7 +688,10 @@ class Interval(Note):
                 distance is not None or
                 steps is not None):
                 ValueError("Cannot specify short with interval_name, distance, or steps")
-            (distance, interval_type) = self._parse_short_name(short)
+            if isinstance(short, Note):
+                return super(Interval, self).__init__(short)
+            else:
+                (distance, interval_type) = self._parse_short_name(short)
 
         if (interval_name is not None or distance is not None):
             # set distance
@@ -753,9 +761,10 @@ class Interval(Note):
 ##################################################################
 
 class Chord(FrozenClass):
-    _notes = None
-    
-    pass
+    def __init__(self, notes, key=None):
+        self.notes = notes
+        self.key   = key
+        self._freeze()
 
 ##################################################################
 # constants
