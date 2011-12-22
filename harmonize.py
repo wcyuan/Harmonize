@@ -761,10 +761,41 @@ class Interval(Note):
 ##################################################################
 
 class Chord(FrozenClass):
-    def __init__(self, notes, key=None):
-        self.notes = notes
+    def __init__(self, short=None, notes=None, key=None):
+        # make sure the notes are in order
+        notelist = list(notes)
+        notelist.sort()
+        # add the key to the notes?
+        self.notes = tuple(notelist)
         self.key   = key
         self._freeze()
+
+    def __eq__(self, other):
+        return (self.notes == other.notes and
+                self.key == other.key)
+
+    def __hash__(self):
+        return hash((self.notes, self.key))
+
+    @property
+    def quality(self):
+        if len(self.notes) == 3:
+            if ((self.notes[1] - self.notes[0]) == M3 and
+                (self.notes[2] - self.notes[1]) == m3):
+                return "Major Triad"
+            if ((self.notes[1] - self.notes[0]) == m3 and
+                (self.notes[2] - self.notes[1]) == M3):
+                return "Minor Triad"
+        return "Unknown"
+                
+#    - methods
+#      - a function that deduces the notes from a string and vice versa:
+#          http://en.wikipedia.org/wiki/Interval_(music)#Intervals_in_chords
+#      - function: is a given note part of a given chord?
+#      - function: given a note and a chord w/o a root, return chords
+#        that contain the given note, and the key that the chord would be
+#        part of
+#      - compare two chords to see if they have the same type
 
 ##################################################################
 # constants
