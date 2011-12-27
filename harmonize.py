@@ -75,6 +75,34 @@ __all__ = ['Note',
            'O'  ,
 
            'Chord',
+           'Cmaj',
+           'Cmin',
+           'Cdim',
+           'Caug',
+           'Dmaj',
+           'Dmin',
+           'Ddim',
+           'Daug',
+           'Emaj',
+           'Emin',
+           'Edim',
+           'Eaug',
+           'Fmaj',
+           'Fmin',
+           'Fdim',
+           'Faug',
+           'Gmaj',
+           'Gmin',
+           'Gdim',
+           'Gaug',
+           'Amaj',
+           'Amin',
+           'Adim',
+           'Aaug',
+           'Bmaj',
+           'Bmin',
+           'Bdim',
+           'Baug',
            'I'  ,
            'ii' ,
            'iii',
@@ -83,7 +111,8 @@ __all__ = ['Note',
            'vi' ,
            'vii',
 
-           'PROGRESSIONS'
+           'PROGRESSIONS',
+           'CADENCES'
            ]
 
 ##################################################################
@@ -924,12 +953,15 @@ class Chord(FrozenClass):
             key = C
         if short.upper() in cls._KEY_CHORDS:
             scale_num = cls._KEY_CHORDS[short.upper()] - 1
+            # By using the scale_num option of Notes, we are assuming
+            # that the key is major.
             root = Note(scale_num=scale_num, accidental=None, octave=0)
             root = root + key
             if short == short.upper():
                 quality = 'major'
             else:
                 if short == 'vii':
+                    # Special case: vii is diminished, not minor
                     quality = 'diminished'
                 else:
                     quality = 'minor'
@@ -1011,13 +1043,42 @@ class Chord(FrozenClass):
 
 ### Chord Constants
 
+Cmaj = Chord(short='Cmaj')
+Cmin = Chord(short='Cmin')
+Cdim = Chord(short='Cdim')
+Caug = Chord(short='Caug')
+Dmaj = Chord(short='Dmaj')
+Dmin = Chord(short='Dmin')
+Ddim = Chord(short='Ddim')
+Daug = Chord(short='Daug')
+Emaj = Chord(short='Emaj')
+Emin = Chord(short='Emin')
+Edim = Chord(short='Edim')
+Eaug = Chord(short='Eaug')
+Fmaj = Chord(short='Fmaj')
+Fmin = Chord(short='Fmin')
+Fdim = Chord(short='Fdim')
+Faug = Chord(short='Faug')
+Gmaj = Chord(short='Gmaj')
+Gmin = Chord(short='Gmin')
+Gdim = Chord(short='Gdim')
+Gaug = Chord(short='Gaug')
+Amaj = Chord(short='Amaj')
+Amin = Chord(short='Amin')
+Adim = Chord(short='Adim')
+Aaug = Chord(short='Aaug')
+Bmaj = Chord(short='Bmaj')
+Bmin = Chord(short='Bmin')
+Bdim = Chord(short='Bdim')
+Baug = Chord(short='Baug')
+
 I   = Chord(notes=(C, E,  G))
 ii  = Chord(notes=(D, F,  A))
 iii = Chord(notes=(E, G,  B))
 IV  = Chord(notes=(F, A,  C1))
 V   = Chord(notes=(G, B,  D1))
 vi  = Chord(notes=(A, C1, E1))
-vii = Chord(notes=(B, D1, F1))
+vii = Chord(notes=(B, D1, F1))  # diminished
 
 PROGRESSIONS = ((I,   IV),  # Circle of fifths
                 (IV,  vii),
@@ -1047,6 +1108,23 @@ PROGRESSIONS = ((I,   IV),  # Circle of fifths
                 (vi,  V),
                 (V,   vi),
                 (V,   ii))
+
+CADENCES = ((V,  I), # Authentic
+            (IV, I), # Plagal
+            (I,  V), # Half
+            (ii, V), # Half
+            (IV, V), # Half
+            (V, vi), # Deceptive
+            (V, IV), # Deceptive
+            (V, ii)) # Deceptive
+
+
+##################################################################
+
+def test():
+    melody = (C, D, E, D, C)
+    key = C
+    last_chord = Cmaj
 
 ##################################################################
 
