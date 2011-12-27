@@ -72,7 +72,18 @@ __all__ = ['Note',
            'm7' ,
            'M7' ,
            'A7' ,
-           'O'
+           'O'  ,
+
+           'Chord',
+           'I'  ,
+           'ii' ,
+           'iii',
+           'IV' ,
+           'V'  ,
+           'vi' ,
+           'vii',
+
+           'PROGRESSIONS'
            ]
 
 ##################################################################
@@ -529,6 +540,36 @@ class Note(FrozenClass):
 
 ##################################################################
 
+### Note Constants
+
+C  = Note('C')
+Cb = Note('Cb')
+Cs = Note('C#')
+Db = Note('Db')
+D  = Note('D')
+Ds = Note('D#')
+Eb = Note('Eb')
+E  = Note('E')
+Es = Note('E#')
+Fb = Note('Fb')
+F  = Note('F')
+Fs = Note('F#')
+Gb = Note('Gb')
+G  = Note('G')
+Gs = Note('G#')
+Ab = Note('Ab')
+A  = Note('A')
+As = Note('A#')
+Bb = Note('Bb')
+B  = Note('B')
+Bs = Note('B#')
+C1 = Note('C1')
+D1 = Note('D1')
+E1 = Note('E1')
+F1 = Note('F1')
+
+##################################################################
+
 class Interval(Note):
     """
     Interval has the same attributes as Note: name, accidental, octave.  
@@ -760,71 +801,7 @@ class Interval(Note):
 
 ##################################################################
 
-class Chord(FrozenClass):
-    def __init__(self, short=None, notes=None, key=None):
-        # make sure the notes are in order
-        notelist = list(notes)
-        notelist.sort()
-        # add the key to the notes?
-        self.notes = tuple(notelist)
-        self.key   = key
-        self._freeze()
-
-    def __eq__(self, other):
-        return (self.notes == other.notes and
-                self.key == other.key)
-
-    def __hash__(self):
-        return hash((self.notes, self.key))
-
-    @property
-    def quality(self):
-        if len(self.notes) == 3:
-            if ((self.notes[1] - self.notes[0]) == M3 and
-                (self.notes[2] - self.notes[1]) == m3):
-                return "Major Triad"
-            if ((self.notes[1] - self.notes[0]) == m3 and
-                (self.notes[2] - self.notes[1]) == M3):
-                return "Minor Triad"
-        return "Unknown"
-                
-#    - methods
-#      - a function that deduces the notes from a string and vice versa:
-#          http://en.wikipedia.org/wiki/Interval_(music)#Intervals_in_chords
-#      - function: is a given note part of a given chord?
-#      - function: given a note and a chord w/o a root, return chords
-#        that contain the given note, and the key that the chord would be
-#        part of
-#      - compare two chords to see if they have the same type
-
-##################################################################
-# constants
-
-### Notes
-
-C  = Note('C')
-Cb = Note('Cb')
-Cs = Note('C#')
-Db = Note('Db')
-D  = Note('D')
-Ds = Note('D#')
-Eb = Note('Eb')
-E  = Note('E')
-Es = Note('E#')
-Fb = Note('Fb')
-F  = Note('F')
-Fs = Note('F#')
-Gb = Note('Gb')
-G  = Note('G')
-Gs = Note('G#')
-Ab = Note('Ab')
-A  = Note('A')
-As = Note('A#')
-Bb = Note('Bb')
-B  = Note('B')
-Bs = Note('B#')
-
-### Intervals
+### Interval Constants
 
 U   = Interval('P1')
 d2  = Interval('d2')
@@ -850,6 +827,226 @@ m7  = Interval('m7')
 M7  = Interval('M7')
 A7  = Interval('A7')
 O   = Interval('P8')
+
+##################################################################
+
+class Chord(FrozenClass):
+
+    _QUALITIES = {
+        # triads
+        'major':      (M3, P5),
+        'minor':      (m3, P5),
+        'augmented':  (M3, A5),
+        'diminished': (m3, d5),
+
+        # seventh chords
+        'dominant-seventh':   (M3, P5, m7),
+        'minor-seventh':      (m3, P5, m7),
+        'major-seventh':      (M3, P5, M7),
+        'augmented-seventh':  (M3, A5, m7),
+        'diminished-seventh': (m3, d5, d7),
+        'half-diminished-seventh': (m3, d5, m7)}
+
+    _KEY_CHORDS = {'I'   : 1,
+                   'II'  : 2,
+                   'III' : 3,
+                   'IV'  : 4,
+                   'V'   : 5,
+                   'VI'  : 6,
+                   'VII' : 7}
+
+    @staticmethod
+    def _quality_is_seventh(quality):
+        return quality.endswith('-seventh')
+
+    @classmethod
+    def _quality_to_intervals(cls, string):
+        string=string.lower()
+        if string in cls._QUALITIES:
+            return cls._QUALITIES[string]
+        if len(string) == 3:
+            for quality in cls._QUALITIES:
+                if quality.startswith(string):
+                    return cls._QUALITIES[quality]
+        elif len(string) == 4 and string[3] == '7':
+            for quality in cls._QUALITIES:
+                if (quality.startswith(string[0:2]) and
+                    self._quality_is_seventh(quality)):
+                    return cls._QUALITIES[quality]
+        return None
+
+    @classmethod
+    def _intervals_to_quality(cls, intervals):
+        nintervals = len(intervals)
+        if nintervals == 2 or nintervals == 3:
+            for quality in cls._QUALITIES:
+                if (nintervals == 2 and
+                    len(cls._QUALITIES[quality]) == nintervals and
+                    intervals[0] == cls._QUALITIES[quality][0] and
+                    intervals[1] == cls._QUALITIES[quality][1]):
+                    return quality
+                if (nintervals == 3 and
+                    len(cls._QUALITIES[quality]) == nintervals and
+                    intervals[0] == cls._QUALITIES[quality][0] and
+                    intervals[1] == cls._QUALITIES[quality][1] and
+                    intervals[2] == cls._QUALITIES[quality][2]):
+                    return quality
+        return None
+
+    @staticmethod
+    def _notes_to_intervals(notes):
+        return tuple(n - notes[0] for n in notes[1:])
+
+    @classmethod
+    def _notes_to_quality(cls, notes):
+        return cls._intervals_to_quality(cls._notes_to_intervals(notes))
+
+    @classmethod
+    def _parse_short(cls, short, key):
+        orig = short
+        if short.endswith('7'):
+            is_seventh = True
+            short = short[:-1]
+        else:
+            is_seventh = False
+        short_quality = short[-3:]
+        try:
+            root = Note(short=short[:-3])
+            hasroot = True
+        except:
+            hasroot = False
+        if hasroot:
+            for quality in cls._QUALITIES:
+                if (cls._quality_is_seventh(quality) == is_seventh and
+                    short_quality == quality[:3]):
+                    return (root, quality)
+        if key is None:
+            key = C
+        if short.upper() in cls._KEY_CHORDS:
+            scale_num = cls._KEY_CHORDS[short.upper()] - 1
+            root = Note(scale_num=scale_num, accidental=None, octave=0)
+            root = root + key
+            if short == short.upper():
+                quality = 'major'
+            else:
+                if short == 'vii':
+                    quality = 'diminished'
+                else:
+                    quality = 'minor'
+            return (root, quality)
+        ValueError("Can't parse short name: %s" % orig)
+            
+    def __init__(self, short=None, notes=None, key=None):
+        if short is not None:
+            if notes is not None:
+                ValueError("Can't provide both short %s and notes %s" %
+                           (short, notes))
+            (root, quality) = self._parse_short(short, key)
+            intervals = self._quality_to_intervals(quality)
+            self.notes = (root, ) + tuple(root + i for i in intervals)
+        else:
+            # make sure the notes are in order
+            notelist = list(notes)
+            notelist.sort()
+            if len(notelist) == 0:
+                raise ValueError("Chord must have at least one note")
+            # add the key to the notes?
+            self.notes = tuple(notelist)
+        self.key = key
+        self._freeze()
+
+    def __eq__(self, other):
+        return (self.notes == other.notes and
+                # If the key is set on both chords, then the key has
+                # to be equal.  But if the key is not set on either
+                # chord, then the key doesn't have to match.  
+                (self.key == None or
+                 other.key == None or
+                 self.key == other.key))
+
+    def __hash__(self):
+        return hash((self.notes, self.key))
+
+    def __str__(self):
+        quality = self.quality
+        if quality is None:
+            return '[%s]' % '-'.join(self.notes)
+        else:
+            sfx = ''
+            if self._quality_is_seventh(quality):
+                sfx = '7'
+            return "%s%s%s" % (self.notes[0], self.quality[0:3], sfx)
+
+    def __repr__(self):
+        return "%s:%s" % (self.__class__.__name__, str(self))
+
+    @property
+    def intervals(self):
+        return self._notes_to_intervals(self.notes)
+
+    @property
+    def quality(self):
+        quality = self._notes_to_quality(self.notes)
+        if quality == None:
+            return "Unknown"
+        else:
+            return quality
+
+    @property
+    def is_seventh_chord(self):
+        return self._quality_is_seventh(self.quality)
+
+
+#    - methods
+#      - a function that deduces the notes from a string and vice versa:
+#          http://en.wikipedia.org/wiki/Interval_(music)#Intervals_in_chords
+#      - function: is a given note part of a given chord?
+#      - function: given a note and a chord w/o a root, return chords
+#        that contain the given note, and the key that the chord would be
+#        part of
+#      - compare two chords to see if they have the same type
+
+
+##################################################################
+
+### Chord Constants
+
+I   = Chord(notes=(C, E,  G))
+ii  = Chord(notes=(D, F,  A))
+iii = Chord(notes=(E, G,  B))
+IV  = Chord(notes=(F, A,  C1))
+V   = Chord(notes=(G, B,  D1))
+vi  = Chord(notes=(A, C1, E1))
+vii = Chord(notes=(B, D1, F1))
+
+PROGRESSIONS = ((I,   IV),  # Circle of fifths
+                (IV,  vii),
+                (vii, iii),
+                (iii, vi),
+                (vi,  ii),
+                (ii,  V),
+                (V,   I),
+
+                (I,   V),   # Pachelbel
+                (V,   vi),
+                (vi,  iii),
+                (iii, IV),
+                (IV,  I),
+                (IV,  V),
+                
+                (I,   vi),  # ii - IV - vi
+                (vi,  IV),
+                (IV,  vi),
+                (IV,  ii),
+                (ii,  IV),
+                (ii,  vi),
+                (vi,  ii),
+                
+                (IV,  I),   # other
+                (I,   iii),
+                (vi,  V),
+                (V,   vi),
+                (V,   ii))
 
 ##################################################################
 
