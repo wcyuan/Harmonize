@@ -19,9 +19,16 @@ import re
 
 def logat(level=None):
     if level is None:
-        return getLevelName(getLogger(__name__).level)
+        lvl = getLogger().level
+        if isinstance(lvl, int):
+            return getLevelName(lvl)
+        else:
+            return lvl
     else:
-        getLogger(__name__).setLevel(level)
+        if not isinstance(level, int):
+            level = getLevelName(level)
+        getLogger().setLevel(level)
+        print "Set logger for {0} to {1}".format(getLogger().name, logat())
 
 ##################################################################
 
@@ -160,7 +167,7 @@ class Note(FrozenClass):
     """
 
     # --------------------------------------------------------- #
-    # Class Attributes
+    # Note: Class Attributes
     #
 
     __is_frozen = False
@@ -173,7 +180,7 @@ class Note(FrozenClass):
     isotonic_is_equal = True
 
     # --------------------------------------------------------- #
-    # Class Methods
+    # Note: Class Methods
     #
 
     @classmethod
@@ -364,7 +371,7 @@ class Note(FrozenClass):
         return (name, accidental, octave)
 
     # --------------------------------------------------------- #
-    # CTOR
+    # Note: CTOR
     #
 
     def __init__(self, 
@@ -436,7 +443,7 @@ class Note(FrozenClass):
         self._freeze()
 
     # --------------------------------------------------------- #
-    # Properties
+    # Note: Properties
     #
 
     @property
@@ -448,7 +455,7 @@ class Note(FrozenClass):
         return self._name_to_steps(self.name, self.accidental, self.octave)
 
     # --------------------------------------------------------- #
-    # Methods
+    # Note: Methods
     #
 
     def __repr__(self):
@@ -545,6 +552,8 @@ class Note(FrozenClass):
         Interval:M3
         >>> G - M3
         Note:Eb0
+        >>> C - P4
+        Note:G-1
         >>> P5 - P4
         Interval:M2
         >>> M2 - P4
@@ -555,17 +564,22 @@ class Note(FrozenClass):
         if not isinstance(other, Note):
             return self - Interval(steps=other)
 
-        distance = abs(self.scale_num - other.scale_num)
-        accidental = abs(self.steps - other.steps) - self._scale_num_to_steps(distance)
-
+        distance = self.scale_num - other.scale_num
+        steps = self.steps - other.steps
         # Note     - Note     = Interval
         # Note     - Interval = Note
         # Interval - Note     = Interval  (doesn't make a huge amount of sense...)
         # Interval - Interval = Interval
         if not isinstance(self, Interval) and isinstance(other, Interval):
+            accidental = steps - self._scale_num_to_steps(distance)
             return Note(scale_num=distance, accidental=accidental)
         else:
+            distance = abs(distance)
+            accidental = abs(steps) - self._scale_num_to_steps(distance)
             return Interval(distance=distance, accidental=accidental)
+
+    def match(self, other, nooctave=True):
+        return (self.steps - other.steps) % self._STEPS_PER_OCTAVE == 0
 
 ##################################################################
 
@@ -632,7 +646,7 @@ class Interval(Note):
     """
 
     # --------------------------------------------------------- #
-    # Class Attributes
+    # Interval: Class Attributes
     #
 
     _INTERVAL_NAMES=("UNISON",
@@ -666,7 +680,7 @@ class Interval(Note):
     _TYPE_ABBREV = ('d',          'm',     'M',     'P',       'A')
 
     # --------------------------------------------------------- #
-    # Class Methods
+    # Interval: Class Methods
     #
 
     @classmethod
@@ -742,7 +756,7 @@ class Interval(Note):
         return (distance, interval_type)
 
     # --------------------------------------------------------- #
-    # CTOR
+    # Interval: CTOR
     #
 
     def __init__(self, 
@@ -798,7 +812,7 @@ class Interval(Note):
             super(Interval, self).__init__(steps=steps, isotonic=isotonic)
 
     # --------------------------------------------------------- #
-    # Properties
+    # Interval: Properties
     #
 
     @property
@@ -822,7 +836,7 @@ class Interval(Note):
         return interval_type
 
     # --------------------------------------------------------- #
-    # Methods
+    # Interval: Methods
     #
 
     def __str__(self):
@@ -861,6 +875,10 @@ O   = Interval('P8')
 
 class Chord(FrozenClass):
 
+    # --------------------------------------------------------- #
+    # Chord: Class Attributes
+    #
+
     _QUALITIES = {
         # triads
         'major':      (M3, P5),
@@ -883,6 +901,10 @@ class Chord(FrozenClass):
                    'V'   : 5,
                    'VI'  : 6,
                    'VII' : 7}
+
+    # --------------------------------------------------------- #
+    # Chord: Class Methods
+    #
 
     @staticmethod
     def _quality_is_seventh(quality):
@@ -968,6 +990,10 @@ class Chord(FrozenClass):
             return (root, quality)
         ValueError("Can't parse short name: %s" % orig)
             
+    # --------------------------------------------------------- #
+    # Chord: CTOR
+    #
+
     def __init__(self, short=None, notes=None, key=None):
         if short is not None:
             if notes is not None:
@@ -987,14 +1013,47 @@ class Chord(FrozenClass):
         self.key = key
         self._freeze()
 
+    # --------------------------------------------------------- #
+    # Chord: Properties
+    #
+
+    @property
+    def root(self):
+        if self.key is None:
+            return self.notes[0]
+        else:
+            return self.notes[0] + self.key
+
+    @property
+    def intervals(self):
+        return self._notes_to_intervals(self.notes)
+
+    @property
+    def quality(self):
+        quality = self._notes_to_quality(self.notes)
+        if quality is None:
+            return "Unknown"
+        else:
+            return quality
+
+    @property
+    def is_seventh_chord(self):
+        return self._quality_is_seventh(self.quality)
+
+    @property
+    def real_notes(self):
+        if self.key is None:
+            return self.notes
+        else:
+            return tuple((self.key + n) for n in self.notes)
+
+    # --------------------------------------------------------- #
+    # Chord: Methods
+    #
+
     def __eq__(self, other):
         return (self.notes == other.notes and
-                # If the key is set on both chords, then the key has
-                # to be equal.  But if the key is not set on either
-                # chord, then the key doesn't have to match.  
-                (self.key == None or
-                 other.key == None or
-                 self.key == other.key))
+                self.key == other.key)
 
     def __hash__(self):
         return hash((self.notes, self.key))
@@ -1007,27 +1066,28 @@ class Chord(FrozenClass):
             sfx = ''
             if self._quality_is_seventh(quality):
                 sfx = '7'
-            return "%s%s%s" % (self.notes[0], self.quality[0:3], sfx)
+            return "%s%s%s" % (self.root, self.quality[0:3], sfx)
 
     def __repr__(self):
         return "%s:%s" % (self.__class__.__name__, str(self))
 
-    @property
-    def intervals(self):
-        return self._notes_to_intervals(self.notes)
-
-    @property
-    def quality(self):
-        quality = self._notes_to_quality(self.notes)
-        if quality == None:
-            return "Unknown"
+    def __add__(self, other):
+        if isinstance(other, Note):
+            notes = ((n + other) for n in self.real_notes)
+            return Chord(notes=notes)
         else:
-            return quality
+            ValueError("Can only add notes and intervals to Chords")
 
-    @property
-    def is_seventh_chord(self):
-        return self._quality_is_seventh(self.quality)
+    def has_note(self, note, exact=False):
+        if exact:
+            return note in self.real_notes
+        else:
+            return any(n.match(note) for n in self.real_notes)
 
+    def match(self, other, nooctave=True):
+        return all(s.match(o, nooctave=nooctave)
+                   for (s, o) in
+                   zip(self.real_notes, other.real_notes))
 
 #    - methods
 #      - a function that deduces the notes from a string and vice versa:
@@ -1118,13 +1178,59 @@ CADENCES = ((V,  I), # Authentic
             (V, IV), # Deceptive
             (V, ii)) # Deceptive
 
+FINAL_CADENCES = ((V,  I), # Authentic
+                  (IV, I)) # Plagal
 
 ##################################################################
 
-def test():
-    melody = (C, D, E, D, C)
-    key = C
-    last_chord = Cmaj
+def apply_progression(progression, chord, key=None):
+    if progression[1].intervals == chord.intervals:
+        intv = chord.real_notes[0] - progression[1].real_notes[0]
+        if chord.real_notes[0] < progression[1].real_notes[0]:
+            intv = C - intv
+        else:
+            intv = Note(intv)
+        return (progression[0] + intv, intv)
+    else:
+        return (None, None)
+
+def get_harmonizations(harmonization, melody, progressions=None):
+    harmonizations = []
+    step = len(melody) - len(harmonization)
+    melody_note = melody[step-1]
+    prev_chord = harmonization[0]
+    if progressions is None:
+        if len(harmonization) == 1:
+            progressions = CADENCES
+        else:
+            progressions = PROGRESSIONS
+    seen = []
+    for progression in progressions:
+        (chord, key) = apply_progression(progression, prev_chord)
+        if (chord is not None and
+            chord.has_note(melody_note) and
+            not any(c.match(chord) for c in seen)):
+            new_harm = [chord]
+            new_harm.extend(harmonization)
+            harmonizations.append(new_harm)
+            seen.append(chord)
+            debug("{0}->{1} is {2} in {3} Major".format(chord, prev_chord,
+                                                        progression, key))
+    return harmonizations
+
+def fill_harmonizations(harmonizations, melody):
+    new_harm = []
+    for h in harmonizations:
+        new_harm.extend(get_harmonizations(h, melody))
+    return new_harm
+
+def harmonize(melody=(C, D, E, D, C), final_chord=None):
+    if final_chord is None:
+        final_chord = Cmaj + melody[-1]
+    harmonizations = [[final_chord]]
+    for i in range(len(melody)-1):
+        harmonizations = fill_harmonizations(harmonizations, melody)
+    return harmonizations
 
 ##################################################################
 
