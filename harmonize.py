@@ -13,6 +13,8 @@ from __future__ import division, absolute_import, with_statement
 from logging    import debug, getLogger, getLevelName
 from optparse   import OptionParser
 from math       import floor
+from functools  import update_wrapper 
+from contextlib import contextmanager
 import re
 
 ##################################################################
@@ -131,8 +133,72 @@ class FrozenClass(object):
             raise TypeError( "%r is a frozen class" % self )
         object.__setattr__(self, key, value)
 
+    def __delattr__(self, k):
+        if self.__is_frozen:
+            raise TypeError( "%r is a frozen class" % self )
+        del self.__dict__[k]
+
     def _freeze(self):
         self.__is_frozen = True
+
+    @contextmanager
+    def _unfrozen(self):
+        """
+        Context manager that temporarily allows adding new attributes inside
+        the context.
+        """
+        old_frozen = self.__is_frozen
+        try:
+            self.__dict__['_FrozenClass__is_frozen'] = False
+            yield
+        finally:
+            self.__dict__['_FrozenClass__is_frozen'] = old_frozen
+
+##################################################################
+
+class cached_attribute(object):
+    """
+    Cached attribute access for instances (ASPN 276643)
+
+    >>> class C(object):
+    ...    @cached_attribute
+    ...    def a(self):
+    ...        print 'computing...'
+    ...        return 1 + 1
+    >>>
+    >>> c = C()
+    >>> c.__dict__
+    {}
+    >>>
+    >>> type(C.a)
+    <class '__main__.cached_attribute'>
+    >>>
+    >>> c.a
+    computing...
+    2
+    >>>
+    >>> c.__dict__
+    {'a': 2}
+    >>>
+    >>> c.a
+    2
+
+    """
+    def __init__(self, method, name=None):
+        self.method = method
+        self.name   = name or method.__name__
+        update_wrapper(self, method)
+
+    def __get__(self, inst, cls=None):
+        if inst is None:
+            return self
+        result = self.method(inst)
+        if isinstance(inst, FrozenClass):
+            with inst._unfrozen():
+                setattr(inst, self.name, result)
+        else:
+            setattr(inst, self.name, result)
+        return result
 
 ##################################################################
 
@@ -1022,18 +1088,18 @@ class Chord(FrozenClass):
     # Chord: Properties
     #
 
-    @property
+    @cached_attribute
     def root(self):
         if self.key is None:
             return self.notes[0]
         else:
             return self.notes[0] + self.key
 
-    @property
+    @cached_attribute
     def intervals(self):
         return self._notes_to_intervals(self.notes)
 
-    @property
+    @cached_attribute
     def quality(self):
         quality = self._notes_to_quality(self.notes)
         if quality is None:
@@ -1041,11 +1107,11 @@ class Chord(FrozenClass):
         else:
             return quality
 
-    @property
+    @cached_attribute
     def is_seventh_chord(self):
         return self._quality_is_seventh(self.quality)
 
-    @property
+    @cached_attribute
     def real_notes(self):
         if self.key is None:
             return self.notes
@@ -1303,7 +1369,11 @@ def main():
     opts,args = getopts()
     if opts.doctest:
         import doctest
-        doctest.testmod()
+        doctest.testmod(verbose=opts.verbose)
+        return
+
+    if opts.verbose:
+        logat('DEBUG')
     if len(args) > 0:
         h = harmonize(melody=tuple(Note(a) for a in args))
     else:
@@ -1316,9 +1386,12 @@ def getopts():
     Parse the command-line options
     """
     parser = OptionParser()
-    parser.add_option('--doctest',
+    parser.add_option('--doctest', '--test',
                       action='store_true',
                       help='run the doctest')
+    parser.add_option('--verbose', '-v',
+                      action='store_true',
+                      help='verbose')
     opts,args = parser.parse_args()
     return (opts,args)
 
