@@ -343,7 +343,7 @@ class Note(FrozenClass):
         """
         match = re.match('^(?:(\D)|(\d+))((?:|#|b|x|bb|\-\d+|\+\d+))((?:-|\+|)\d*)$', shorthand)
         if match is None:
-            ValueError("Can't parse " + shorthand)
+            raise ValueError("Can't parse " + shorthand)
 
         #debug("Parsing %s as %s" % (shorthand, match.groups()))
 
@@ -381,12 +381,12 @@ class Note(FrozenClass):
                  steps=None, 
                  flat=False, sharp=False, 
                  isotonic=None):
-
+        super(Note, self).__init__()
         if short is not None:
             if (name is not None or
                 scale_num is not None or
                 steps is not None):
-                ValueError("Cannot specify short with name, scale_num, or steps")
+                raise ValueError("Cannot specify short with name, scale_num, or steps")
             if isinstance(short, Note):
                 name = short.name
                 accidental = short.accidental
@@ -404,7 +404,7 @@ class Note(FrozenClass):
             if scale_num is not None:
                 (this_name, this_octave) = self._scale_num_to_name(scale_num)
                 if name is not None and name != this_name:
-                    ValueError("Name %s doesn't match scale num %d" % (name, scale_num))
+                    raise ValueError("Name %s doesn't match scale num %d" % (name, scale_num))
                 name = this_name
                 # If the user specifies a scale_num and an octave, we
                 # add the octaves together rather than expect them to
@@ -424,14 +424,14 @@ class Note(FrozenClass):
                     accidental = 0
             self.accidental  = accidental
             if steps is not None and steps != self.steps:
-                ValueError("Name %s has steps %d not %d" %
-                           (self._str_name(name, accidental, octave),
-                            self.steps, steps))
+                raise ValueError("Name %s has steps %d not %d" %
+                                 (self._str_name(name, accidental, octave),
+                                  self.steps, steps))
         else:
             if steps is None:
-                ValueError("Must specify note name or steps")
+                raise ValueError("Must specify note name or steps")
             if (accidental is not None or octave is not None):
-                ValueError("Cannot specify accidental or octave without specifying the note name")
+                raise ValueError("Cannot specify accidental or octave without specifying the note name")
             (scale_num, myaccidental, myoctave) = self._steps_to_scale_num(steps)
             self.name = self._scale_num_to_name(scale_num)[0]
             self.accidental = myaccidental
@@ -579,7 +579,10 @@ class Note(FrozenClass):
             return Interval(distance=distance, accidental=accidental)
 
     def match(self, other, nooctave=True):
-        return (self.steps - other.steps) % self._STEPS_PER_OCTAVE == 0
+        if nooctave:
+            return (self.steps - other.steps) % self._STEPS_PER_OCTAVE == 0
+        else:
+            return self.steps == other.steps
 
 ##################################################################
 
@@ -692,7 +695,7 @@ class Interval(Note):
             match = re.match('^(%d)(ST|ND|RD|TH)$', interval_name)
             if match is not None:
                 return match.group(0) - 1
-            ValueError("Unknown interval " + interval_name)
+            raise ValueError("Unknown interval " + interval_name)
 
     @classmethod
     def _distance_to_interval_name(cls, distance):
@@ -744,14 +747,14 @@ class Interval(Note):
     def _parse_short_name(cls, shorthand):
         match = re.match('^(\D)(\d+)$', shorthand)
         if match is None:
-            ValueError("Can't parse " + shorthand)
+            raise ValueError("Can't parse " + shorthand)
         short_type = match.group(1)
         if short_type not in cls._TYPE_ABBREV:
-            ValueError("Can't parse interval type %s from %s " % (short_type, shorthand))
+            raise ValueError("Can't parse interval type %s from %s " % (short_type, shorthand))
         interval_type = cls._ALL_TYPES[cls._TYPE_ABBREV.index(short_type)]
         interval_num = int(match.group(2))
         if interval_num == 0:
-            ValueError("Can't parse interval %d from %s " % (interval_num, shorthand))
+            raise ValueError("Can't parse interval %d from %s " % (interval_num, shorthand))
         distance = abs(interval_num) - 1
         return (distance, interval_type)
 
@@ -771,9 +774,10 @@ class Interval(Note):
             if (interval_name is not None or
                 distance is not None or
                 steps is not None):
-                ValueError("Cannot specify short with interval_name, distance, or steps")
+                raise ValueError("Cannot specify short with interval_name, distance, or steps")
             if isinstance(short, Note):
-                return super(Interval, self).__init__(short)
+                super(Interval, self).__init__(short)
+                return
             else:
                 (distance, interval_type) = self._parse_short_name(short)
 
@@ -785,15 +789,15 @@ class Interval(Note):
                 else:
                     mydistance = interval_name - 1
                 if distance is not None and distance != mydistance:
-                    ValueError("Interval %s does not match distance %d" % (interval_name, distance))
+                    raise ValueError("Interval %s does not match distance %d" % (interval_name, distance))
                 distance = mydistance
 
             # set accidental
             if interval_type is not None:
                 myaccidental = self._interval_type_to_accidental(distance, interval_type)
                 if accidental is not None and accidental != myaccidental:
-                    ValueError("Interval type %s does not match accidental %d" %
-                               (interval_type, accidental))
+                    raise ValueError("Interval type %s does not match accidental %d" %
+                                     (interval_type, accidental))
                 accidental = myaccidental
             elif accidental is None:
                 # or should we calculate the accidental from the steps?
@@ -806,9 +810,9 @@ class Interval(Note):
 
         else:
             if (interval_type is not None or accidental is not None):
-                ValueError("Must specify interval_name or distance when specifying interval_type or accidental")
+                raise ValueError("Must specify interval_name or distance when specifying interval_type or accidental")
             if steps is None:
-                ValueError("Must specify interval_name, distance, or steps")
+                raise ValueError("Must specify interval_name, distance, or steps")
             super(Interval, self).__init__(steps=steps, isotonic=isotonic)
 
     # --------------------------------------------------------- #
@@ -922,7 +926,7 @@ class Chord(FrozenClass):
         elif len(string) == 4 and string[3] == '7':
             for quality in cls._QUALITIES:
                 if (quality.startswith(string[0:2]) and
-                    self._quality_is_seventh(quality)):
+                    cls._quality_is_seventh(quality)):
                     return cls._QUALITIES[quality]
         return None
 
@@ -988,17 +992,18 @@ class Chord(FrozenClass):
                 else:
                     quality = 'minor'
             return (root, quality)
-        ValueError("Can't parse short name: %s" % orig)
+        raise ValueError("Can't parse short name: %s" % orig)
             
     # --------------------------------------------------------- #
     # Chord: CTOR
     #
 
     def __init__(self, short=None, notes=None, key=None):
+        super(Chord, self).__init__()
         if short is not None:
             if notes is not None:
-                ValueError("Can't provide both short %s and notes %s" %
-                           (short, notes))
+                raise ValueError("Can't provide both short %s and notes %s" %
+                                 (short, notes))
             (root, quality) = self._parse_short(short, key)
             intervals = self._quality_to_intervals(quality)
             self.notes = (root, ) + tuple(root + i for i in intervals)
@@ -1076,7 +1081,7 @@ class Chord(FrozenClass):
             notes = ((n + other) for n in self.real_notes)
             return Chord(notes=notes)
         else:
-            ValueError("Can only add notes and intervals to Chords")
+            raise ValueError("Can only add notes and intervals to Chords")
 
     def has_note(self, note, exact=False):
         if exact:
@@ -1088,16 +1093,6 @@ class Chord(FrozenClass):
         return all(s.match(o, nooctave=nooctave)
                    for (s, o) in
                    zip(self.real_notes, other.real_notes))
-
-#    - methods
-#      - a function that deduces the notes from a string and vice versa:
-#          http://en.wikipedia.org/wiki/Interval_(music)#Intervals_in_chords
-#      - function: is a given note part of a given chord?
-#      - function: given a note and a chord w/o a root, return chords
-#        that contain the given note, and the key that the chord would be
-#        part of
-#      - compare two chords to see if they have the same type
-
 
 ##################################################################
 
@@ -1183,7 +1178,7 @@ FINAL_CADENCES = ((V,  I), # Authentic
 
 ##################################################################
 
-def apply_progression(progression, chord, key=None):
+def apply_progression(progression, chord):
     if progression[1].intervals == chord.intervals:
         intv = chord.real_notes[0] - progression[1].real_notes[0]
         if chord.real_notes[0] < progression[1].real_notes[0]:
@@ -1305,15 +1300,25 @@ def main():
     """
     Main body of the script.
     """
-    #opts,args = getopts()
-    import doctest
-    doctest.testmod()
+    opts,args = getopts()
+    if opts.doctest:
+        import doctest
+        doctest.testmod()
+    if len(args) > 0:
+        h = harmonize(melody=tuple(Note(a) for a in args))
+    else:
+        h = harmonize()
+    for harmony in h:
+        print harmony
 
 def getopts():
     """
     Parse the command-line options
     """
     parser = OptionParser()
+    parser.add_option('--doctest',
+                      action='store_true',
+                      help='run the doctest')
     opts,args = parser.parse_args()
     return (opts,args)
 
