@@ -1362,6 +1362,14 @@ def harmonize(melody=(C, D, E, D, C), final_chord=None):
 
 ##################################################################
 
+#
+# To profile, run:
+#    python -m cProfile -o output.txt testbed/github/Harmonize/harmonize.py D A B A G 'F#' E D
+# Then, in ipython:
+#    import pstats
+#    p = pstats.Stats('output.txt')
+#    psort_stats('cumulative').print_stats(10)
+#
 def main():
     """
     Main body of the script.
