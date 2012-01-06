@@ -1,3 +1,4 @@
+#!python
 """
 harmonize.py [<options>] [...args...]
 
