@@ -1,14 +1,37 @@
-#!python
+#!/usr/bin/env python
 """
-harmonize.py [<options>] [...args...]
+harmonize.py [<options>] [note]*
 
-Description: Module for music notation
+Description: Module for music notation and harmonization.  
+
+This script provides a list of possible chord harmonizations for a
+given melody.  Given a melody (just a list of notes with no rhythm),
+it print out a list of harmonizations.  Each harmonization is a list
+of chords, one per note.  It doesn't attempt to show the appropriate
+voicing for the chord.
+
+The algorithm is pretty simple, there is a hard-coded list of
+acceptable chord progressions, so we just step through the melody and
+apply each possible progression that matches the melody.
+
+This file also contains constants and classes for a general music
+notation package.  There are three classes provided: L{Note},
+L{Interval}, and L{Chord}.  So far these classes only represent
+pitches, no rhythm or other musical features (e.g. keys, time
+signatures, scales, dynamics, voices, etc).
+
+A L{Note} encapsulates three core pieces of information: the letter
+name of the pitch, an accidental, and the octave of the pitch.  An
+L{Interval} is really has the same properties as a L{Note}, but it is
+used differently.  A L{Chord} is essentially a Note, plus a list of
+Intervals.
 
 Created by: Conan Yuan (yuanc), 20111218
 
 """
 #
-# 
+# Imports
+#
 
 from __future__ import division, absolute_import, with_statement
 from logging    import debug, getLogger, getLevelName
@@ -21,6 +44,15 @@ import re
 ##################################################################
 
 def logat(level=None):
+    '''
+    A helper function for setting the log level of the module.  
+
+    @type  level: Log Level
+
+    @param level: The level to log at.  Should either be the name of a
+                  level, or the integer representation of the level.
+                  For valid values, see L{logging}.  
+    '''
     if level is None:
         lvl = getLogger().level
         if isinstance(lvl, int):
@@ -35,6 +67,10 @@ def logat(level=None):
 
 ##################################################################
 
+# This is a list of all the constants and classes which are exported
+# by default.  We export the Note, Chord, and Interval classes, and
+# the corresponding constants.  We also export the list of common
+# progressions and cadences.
 __all__ = ['Note',
            'C'  ,
            'Cb' ,
@@ -128,18 +164,40 @@ __all__ = ['Note',
 ##################################################################
 
 class FrozenClass(object):
+    '''
+    Subclasses of this class can use the _freeze method to disallow
+    further changes to the object after the object has been
+    initialized.
+
+    The _unfrozen method is also provided, to allow exceptions.  
+    '''
+
+    # This controls whether setting attributes is allowed.  
     __is_frozen = False
+
+
     def __setattr__(self, key, value):
+        '''
+        We allow attributes to be set if and only if the object is not
+        frozen.
+        '''
         if self.__is_frozen:
             raise TypeError( "%r is a frozen class" % self )
         object.__setattr__(self, key, value)
 
     def __delattr__(self, k):
+        '''
+        We allow attributes to be deleted if and only if the object is
+        not frozen.
+        '''
         if self.__is_frozen:
             raise TypeError( "%r is a frozen class" % self )
         del self.__dict__[k]
 
     def _freeze(self):
+        '''
+        Call _freeze to disallow further attribute updates.  
+        '''
         self.__is_frozen = True
 
     @contextmanager
@@ -150,6 +208,8 @@ class FrozenClass(object):
         """
         old_frozen = self.__is_frozen
         try:
+            # We have to access __dict__ directly in order to bypass
+            # the restrictions in the __setattr__ method.
             self.__dict__['_FrozenClass__is_frozen'] = False
             yield
         finally:
@@ -159,7 +219,10 @@ class FrozenClass(object):
 
 class cached_attribute(object):
     """
-    Cached attribute access for instances (ASPN 276643)
+    Cached attribute access for instances (Based on ActiveState recipe
+    276643)
+    
+    http://code.activestate.com/recipes/276643-caching-and-aliasing-with-descriptors/history/1/
 
     >>> class C(object):
     ...    @cached_attribute
@@ -231,6 +294,26 @@ class Note(FrozenClass):
                     is the same no matter what key we are in, or you
                     could say that we insist on the key of C.
 
+    The main features of a Note are Note arithmetic, and translation
+    to and from a string representation.  The string representation
+    simply concatenates the note name ('A' to 'G'), the accidental
+    symbol and the octave number.
+
+    The octave number is an integer.  Octave 0 is the octave of middle
+    C.  Higher numbers represent higher octaves, lower numbers
+    represent lower octaves.
+
+    The accidental symbol is the empty string, if the accidental is
+    zero, # for sharp, x for double sharp, b for flat, and bb for
+    double flat.  All other accidentals are represented as integers
+    (the number of half steps).  An integer accidental is ambiguous
+    when it is followed by an integer octave (if the octave is
+    positive, there is no way to know where the accidental ends and
+    the octave begins).  But the assumption is that accidentals
+    outside of [-2,2] are rare, plus this string representation is
+    just for convenience -- you shouldn't assume that the string
+    representation is reversible.  
+
     """
 
     # --------------------------------------------------------- #
@@ -253,6 +336,23 @@ class Note(FrozenClass):
     @classmethod
     def _steps_to_scale_num(cls, steps, flat=False):
         """
+        Convert from steps to a tuple containing (scale number,
+        accidental, octave).
+
+        Steps represents an integer number of half steps away from
+        middle C.
+
+        The scale number is a numeric representation of the C scale
+        where 0 is middle C, 1 is D, etc.
+
+        When converting from steps to scale num, you will either land
+        exactly on a note of a scale, or you will be between two
+        notes.  If the steps are between two notes, this method will
+        return the lower note, plus an accidental of 1 to indicate a
+        sharp.  If the argument 'flat' is True, then when the steps
+        are between two notes, this method will return the higher
+        note, plus an accidental of -1 to indicate a flat.
+
         >>> Note._steps_to_scale_num(4)
         (2, 0, 0)
         >>> Note._steps_to_scale_num(5)
@@ -276,8 +376,19 @@ class Note(FrozenClass):
         >>> Note._steps_to_scale_num(-24)
         (0, 0, -2)
         """
+
+        # The algorithm is basically this: There are twelve notes per
+        # octave, and each note of the scale corresponds to two half
+        # steps.  So the octave is steps/12, scale_num is
+        # ((steps%12)/2), and accidental is ((steps%12)%2).  However,
+        # we have to account for the fact that there is only one half
+        # step between E-F, and the "flat" option.
+
         octave = int(floor(steps / cls._STEPS_PER_OCTAVE))
         adj_steps = steps % cls._STEPS_PER_OCTAVE
+
+        # Adding one half step to 5 or higher accounts for the fact
+        # that there is only one half step between E and F.
         if adj_steps >= 5:
             adj_steps += 1
         scale_num = int(adj_steps / 2)
@@ -288,12 +399,16 @@ class Note(FrozenClass):
             accidental = -1
         else:
             accidental = 1
-        #debug("steps %d -> adj_steps %d, scale_num %d, accidental %d" % (steps, adj_steps, scale_num, accidental))
+        #debug("steps %d -> adj_steps %d, scale_num %d, accidental %d" %
+        #      (steps, adj_steps, scale_num, accidental))
         return (scale_num, accidental, octave)
 
     @classmethod
     def _scale_num_to_steps(cls, scale_num, accidental=0, octave=0):
         """
+        Convert from scale_num (with an optional accidental and
+        octave) to the number of half steps away from middle C.  
+
         >>> Note._scale_num_to_steps(1)
         2
         >>> Note._scale_num_to_steps(5)
@@ -317,6 +432,7 @@ class Note(FrozenClass):
         """
         octave += int(floor(scale_num / cls._NOTES_PER_OCTAVE))
         steps = int(scale_num % cls._NOTES_PER_OCTAVE) * 2
+        # Account for the fact that E-F is a single half step.  
         if scale_num % cls._NOTES_PER_OCTAVE > 2:
             steps -= 1
         steps += octave * cls._STEPS_PER_OCTAVE
@@ -326,6 +442,9 @@ class Note(FrozenClass):
     @classmethod
     def _scale_num_to_name(cls, scale_num):
         """
+        Convert from the numeric representation of a note (0-6) to the
+        letter representation (A-G).
+        
         >>> Note._scale_num_to_name(1)
         ('D', 0)
         >>> Note._scale_num_to_name(3)
@@ -349,6 +468,9 @@ class Note(FrozenClass):
     @classmethod
     def _scale_name_to_num(cls, scale_name, octave=0):
         """
+        Convert from the letter representation of a note (A-G) to the
+        numeric representation (0-6).
+
         >>> Note._scale_name_to_num('C')
         0
         >>> Note._scale_name_to_num('C', octave=-1)
@@ -366,6 +488,9 @@ class Note(FrozenClass):
     @classmethod
     def _name_to_steps(cls, name, accidental=0, octave=0):
         """
+        Convert from the letter representation of a note (A-G) to the
+        numeric representation (0-6).
+
         >>> Note._name_to_steps('E')
         4
         >>> Note._name_to_steps('E', accidental=1)
@@ -382,7 +507,7 @@ class Note(FrozenClass):
         scale_num = cls._scale_name_to_num(name)
         steps = cls._scale_num_to_steps(scale_num)
         steps += accidental
-        steps += octave * 12
+        steps += octave * cls._STEPS_PER_OCTAVE
         return steps
 
     @classmethod
@@ -654,6 +779,10 @@ class Note(FrozenClass):
 ##################################################################
 
 ### Note Constants
+#
+# We provide a little more than an octave's worth of 
+# 
+#
 
 C  = Note('C')
 Cb = Note('Cb')
