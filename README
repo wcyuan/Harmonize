@@ -7,3 +7,5 @@ The code is written in python.
 FYI, there is a lot of other music software for python, listed here:
    http://wiki.python.org/moin/PythonInMusic
 
+In particular, http://web.mit.edu/music21/ seems like it encompasses
+everything that this tries to be.
