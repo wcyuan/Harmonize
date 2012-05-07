@@ -15,16 +15,21 @@ acceptable chord progressions, so we just step through the melody and
 apply each possible progression that matches the melody.
 
 This file also contains constants and classes for a general music
-notation package.  There are three classes provided: L{Note},
-L{Interval}, and L{Chord}.  So far these classes only represent
+notation package.  There are three classes provided: Note,
+Interval, and Chord.  So far these classes only represent
 pitches, no rhythm or other musical features (e.g. keys, time
 signatures, scales, dynamics, voices, etc).
 
-A L{Note} encapsulates three core pieces of information: the letter
+A Note encapsulates three core pieces of information: the letter
 name of the pitch, an accidental, and the octave of the pitch.  An
-L{Interval} is really has the same properties as a L{Note}, but it is
-used differently.  A L{Chord} is essentially a Note, plus a list of
+Interval is really has the same properties as a Note, but it is
+used differently.  A Chord is essentially a Note, plus a list of
 Intervals.
+
+Wishlist: 
+ - add comments
+ - add probabilities for transitioning to a chord and a key
+ - fit those probabilities (bach chorales are available from music21 project)
 
 Created by: Conan Yuan (yuanc), 20111218
 
@@ -47,11 +52,9 @@ def logat(level=None):
     '''
     A helper function for setting the log level of the module.  
 
-    @type  level: Log Level
-
-    @param level: The level to log at.  Should either be the name of a
-                  level, or the integer representation of the level.
-                  For valid values, see L{logging}.  
+    level: The level to log at.  Should either be the name of a level,
+           or the integer representation of the level.  For valid values,
+           see the logging module.
     '''
     if level is None:
         lvl = getLogger().level
@@ -220,7 +223,7 @@ class FrozenClass(object):
 class cached_attribute(object):
     """
     Cached attribute access for instances (Based on ActiveState recipe
-    276643)
+    276643).  cached_attribute knows how to work with FrozenClass.  
     
     http://code.activestate.com/recipes/276643-caching-and-aliasing-with-descriptors/history/1/
 
