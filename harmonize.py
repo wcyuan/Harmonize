@@ -654,7 +654,7 @@ class Note(FrozenClass):
     #
 
     def __repr__(self):
-        return "%s:%s" % (self.__class__.__name__, str(self))
+        return "%s('%s')" % (self.__class__.__name__, str(self))
 
     def __str__(self):
         return self._str_name(self.name, self.accidental, self.octave)
@@ -1273,7 +1273,7 @@ class Chord(FrozenClass):
             return "%s%s%s" % (self.root, self.quality[0:3], sfx)
 
     def __repr__(self):
-        return "%s:%s" % (self.__class__.__name__, str(self))
+        return "%s('%s')" % (self.__class__.__name__, str(self))
 
     def __add__(self, other):
         if isinstance(other, Note):
